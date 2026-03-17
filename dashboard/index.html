@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #20233a;
+    --border: #2a2d3a; --accent: #6c63ff;
+    --green: #22c55e; --yellow: #f59e0b; --red: #ef4444; --blue: #3b82f6;
+    --text: #e2e8f0; --muted: #64748b;
+    --cal-mac: #22c55e; --cal-gh: #818cf8; --cal-manual: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+
+  /* ── Header ── */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .header-right { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+  .btn { background: var(--accent); color: white; border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 12px; font-weight: 500; }
+  .btn:hover { opacity: 0.85; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  .auto-badge { background: var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--muted); }
+
+  /* ── Layout ── */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 20px; max-width: 1400px; margin: 0 auto; }
+  .full { grid-column: 1 / -1; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; border-bottom: 1px solid var(--border); }
+  .card-title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .card-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--border); color: var(--muted); }
+  .card-body { padding: 16px 18px; }
+
+  /* ── Status dots ── */
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-red { background: var(--red); }
+  .dot-gray { background: var(--muted); }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 0 10px; }
+  td { padding: 8px 0; border-top: 1px solid var(--border); vertical-align: middle; }
+  td:last-child { text-align: right; color: var(--muted); font-size: 12px; }
+  .model-name { font-weight: 500; font-size: 13px; }
+  .model-detail { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  /* ── Tags ── */
+  .tag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(108,99,255,0.15); color: var(--accent); font-weight: 500; }
+  .tag-green { background: rgba(34,197,94,0.12); color: var(--green); }
+  .tag-yellow { background: rgba(245,158,11,0.12); color: var(--yellow); }
+  .tag-red { background: rgba(239,68,68,0.12); color: var(--red); }
+  .tag-blue { background: rgba(59,130,246,0.12); color: var(--blue); }
+
+  /* ── Status rows ── */
+  .status-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-top: 1px solid var(--border); }
+  .status-row:first-child { border-top: none; }
+  .status-label { color: var(--muted); font-size: 12px; }
+  .status-value { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  .channel-row { padding: 10px 0; border-top: 1px solid var(--border); }
+  .channel-row:first-child { border-top: none; }
+  .channel-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .channel-details { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* ── Calendar ── */
+  .cal-layout { display: grid; grid-template-columns: 1fr 300px; gap: 0; }
+  .cal-main { padding: 16px 18px; border-right: 1px solid var(--border); }
+  .cal-sidebar { padding: 16px; }
+
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-nav h2 { font-size: 16px; font-weight: 600; }
+  .cal-nav-btns { display: flex; gap: 6px; }
+  .cal-nav-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
+  .cal-nav-btn:hover { background: var(--border); }
+
+  .cal-legend { display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+  .cal-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .cal-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-dow { text-align: center; font-size: 11px; color: var(--muted); padding: 4px 0 8px; font-weight: 500; }
+  .cal-day {
+    min-height: 72px; border-radius: 8px; padding: 5px;
+    border: 1px solid transparent; cursor: pointer; transition: background 0.15s;
+    background: var(--surface2);
+  }
+  .cal-day:hover { border-color: var(--accent); }
+  .cal-day.today { border-color: var(--accent) !important; }
+  .cal-day.selected { background: rgba(108,99,255,0.15); border-color: var(--accent); }
+  .cal-day.other-month { opacity: 0.3; }
+  .cal-day-num { font-size: 11px; color: var(--muted); margin-bottom: 3px; font-weight: 500; }
+  .cal-day.today .cal-day-num { color: var(--accent); font-weight: 700; }
+  .cal-events { display: flex; flex-direction: column; gap: 2px; }
+  .cal-event-pill {
+    font-size: 10px; padding: 1px 5px; border-radius: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    cursor: pointer;
+  }
+  .pill-mac { background: rgba(34,197,94,0.2); color: var(--cal-mac); }
+  .pill-github { background: rgba(129,140,248,0.2); color: var(--cal-gh); }
+  .pill-manual { background: rgba(245,158,11,0.2); color: var(--cal-manual); }
+
+  /* ── Sidebar ── */
+  .sidebar-date { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 12px; }
+  .sidebar-event { padding: 8px; border-radius: 8px; margin-bottom: 6px; position: relative; }
+  .sidebar-event.mac { background: rgba(34,197,94,0.08); border-left: 3px solid var(--cal-mac); }
+  .sidebar-event.github { background: rgba(129,140,248,0.08); border-left: 3px solid var(--cal-gh); }
+  .sidebar-event.manual { background: rgba(245,158,11,0.08); border-left: 3px solid var(--cal-manual); }
+  .sidebar-event-title { font-size: 12px; font-weight: 500; margin-bottom: 3px; }
+  .sidebar-event-meta { font-size: 11px; color: var(--muted); }
+  .sidebar-event-del { position: absolute; top: 6px; right: 6px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
+  .sidebar-event-del:hover { color: var(--red); }
+  .sidebar-empty { color: var(--muted); font-size: 12px; padding: 8px 0; }
+
+  /* ── Add task form ── */
+  .add-task-form { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .add-task-form h3 { font-size: 12px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+  .form-row { margin-bottom: 8px; }
+  .form-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; padding: 6px 10px; font-size: 12px;
+  }
+  .form-input:focus { outline: none; border-color: var(--accent); }
+
+  /* ── GitHub auth notice ── */
+  .gh-notice { font-size: 12px; color: var(--yellow); padding: 8px 0; display: flex; align-items: center; gap: 6px; }
+
+  /* ── Usage ── */
+  .usage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .usage-grid { grid-template-columns: 1fr; } }
+  .usage-block { background: var(--surface2); border-radius: 10px; padding: 14px; }
+  .usage-block h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .usage-cost { font-size: 28px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .usage-cost-label { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+  .usage-stat-row { display: flex; justify-content: space-between; padding: 5px 0; border-top: 1px solid var(--border); font-size: 12px; }
+  .usage-stat-row:first-of-type { border-top: none; }
+  .usage-stat-label { color: var(--muted); }
+  .usage-stat-val { font-weight: 500; font-variant-numeric: tabular-nums; }
+  .usage-models { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 4px; }
+
+  /* ── Agents ── */
+  .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .agent-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; position: relative; transition: border-color 0.15s;
+  }
+  .agent-card.active { border-color: var(--green); }
+  .agent-card.default-agent { border-color: var(--accent); }
+  .agent-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+  .agent-name { font-weight: 700; font-size: 15px; }
+  .agent-id { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .agent-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .agent-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .agent-footer { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
+  .agent-division { text-transform: capitalize; }
+
+  /* ── Empty / spinner ── */
+  .empty { color: var(--muted); font-size: 13px; padding: 12px 0; text-align: center; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #countdown { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🤖 AI Dashboard</h1>
+  <div class="header-right">
+    <span>Aktualisiert: <span id="last-updated">–</span></span>
+    <span class="auto-badge">Auto <span id="countdown">30</span>s</span>
+    <button class="btn" onclick="fetchAll()">↻ Refresh</button>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- Ollama: Aktive Jobs -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">⚡ Ollama – Aktive Jobs</div>
+      <span class="card-badge" id="ps-count">–</span>
+    </div>
+    <div class="card-body" id="ollama-ps"><div class="empty"><span class="spinner"></span></div></div>
+  </div>
+
+  <!-- Ollama: Modelle -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📦 Ollama – Modelle</div>
+      <span class="card-badge" id="tags-count">–</span>
+    </div>
+    <div class="card-body" id="ollama-tags"><div class="empty"><span class="spinner"></span></div></div>
+  </div>
+
+  <!-- Usage & Kosten -->
+  <div class="card full">
+    <div class="card-header">
+      <div class="card-title">💰 Usage &amp; Kosten</div>
+      <span class="card-badge" id="usage-total">–</span>
+    </div>
+    <div class="card-body" id="usage-panel"><div class="empty"><span class="spinner"></span></div></div>
+  </div>
+
+  <!-- OpenClaw -->
+  <div class="card full">
+    <div class="card-header">
+      <div class="card-title">🔌 OpenClaw – Gateway &amp; Channels</div>
+      <span class="card-badge" id="oc-count">–</span>
+    </div>
+    <div class="card-body" id="openclaw-status"><div class="empty"><span class="spinner"></span></div></div>
+  </div>
+
+  <!-- Agents -->
+  <div class="card full">
+    <div class="card-header">
+      <div class="card-title">🤖 AI Agents</div>
+      <span class="card-badge" id="agents-count">–</span>
+    </div>
+    <div class="card-body" id="agents-panel"><div class="empty"><span class="spinner"></span></div></div>
+  </div>
+
+  <!-- Kalender -->
+  <div class="card full">
+    <div class="card-header">
+      <div class="card-title">📅 Kalender &amp; Tasks</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="gh-auth-notice" class="gh-notice" style="display:none">⚠ GitHub nicht eingeloggt – <code>gh auth login</code></span>
+        <span class="card-badge" id="cal-count">–</span>
+      </div>
+    </div>
+    <div class="cal-layout">
+      <!-- Kalender-Grid -->
+      <div class="cal-main">
+        <div class="cal-nav">
+          <div class="cal-nav-btns">
+            <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+            <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+          </div>
+          <h2 id="cal-title">–</h2>
+          <button class="cal-nav-btn" onclick="goToday()">Heute</button>
+        </div>
+        <div class="cal-legend">
+          <div class="cal-legend-item"><div class="cal-dot" style="background:var(--cal-mac)"></div> macOS Kalender</div>
+          <div class="cal-legend-item"><div class="cal-dot" style="background:var(--cal-gh)"></div> GitHub Issues</div>
+          <div class="cal-legend-item"><div class="cal-dot" style="background:var(--cal-manual)"></div> Manuell</div>
+        </div>
+        <div class="cal-grid" id="cal-grid">
+          <div class="empty"><span class="spinner"></span></div>
+        </div>
+      </div>
+      <!-- Sidebar -->
+      <div class="cal-sidebar">
+        <div class="sidebar-date" id="sidebar-date">Datum wählen</div>
+        <div id="sidebar-events"><div class="sidebar-empty">Kein Tag ausgewählt</div></div>
+        <div class="add-task-form">
+          <h3>+ Task hinzufügen</h3>
+          <div class="form-row"><input class="form-input" id="task-title" placeholder="Titel" /></div>
+          <div class="form-row"><input class="form-input" id="task-date" type="date" /></div>
+          <div class="form-row"><input class="form-input" id="task-notes" placeholder="Notizen (optional)" /></div>
+          <button class="btn btn-sm" style="width:100%;margin-top:4px" onclick="addTask()">Hinzufügen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-based
+let allEvents = []; // {id, title, date (YYYY-MM-DD), source, ...}
+let selectedDate = null;
+
+const MONTHS_DE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const DAYS_DE   = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function fmt(bytes) {
+  if (!bytes) return '–';
+  const gb = bytes / 1e9;
+  return gb >= 1 ? gb.toFixed(1) + ' GB' : (bytes / 1e6).toFixed(0) + ' MB';
+}
+function timeAgo(isoStr) {
+  if (!isoStr) return '–';
+  const diff = (Date.now() - new Date(isoStr)) / 1000;
+  if (diff < 60) return `${Math.round(diff)}s`;
+  if (diff < 3600) return `${Math.round(diff/60)}m`;
+  if (diff < 86400) return `${Math.round(diff/3600)}h`;
+  return `${Math.round(diff/86400)}d`;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function isoDate(y,m,d) { return `${y}-${pad(m+1)}-${pad(d)}`; }
+
+// ── Ollama ─────────────────────────────────────────────────────────────────────
+async function fetchOllamaPs() {
+  const el = document.getElementById('ollama-ps');
+  const badge = document.getElementById('ps-count');
+  try {
+    const r = await fetch('/api/ollama/ps');
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    const models = data.models || [];
+    badge.textContent = models.length + ' aktiv';
+    if (!models.length) { el.innerHTML = '<div class="empty">Keine laufenden Jobs</div>'; return; }
+    el.innerHTML = `<table>
+      <thead><tr><th>Modell</th><th>Größe</th><th>VRAM</th><th>Status</th></tr></thead>
+      <tbody>${models.map(m=>`<tr>
+        <td><div class="model-name">${m.name}</div><div class="model-detail">${m.details?.parameter_size||''} ${m.details?.quantization_level||''}</div></td>
+        <td>${fmt(m.size)}</td><td>${fmt(m.size_vram)}</td>
+        <td><span class="tag tag-green">läuft</span></td>
+      </tr>`).join('')}</tbody></table>`;
+  } catch {
+    badge.textContent = 'Fehler';
+    el.innerHTML = `<div class="empty" style="color:var(--red)">Ollama nicht erreichbar</div>`;
+  }
+}
+
+async function fetchOllamaTags() {
+  const el = document.getElementById('ollama-tags');
+  const badge = document.getElementById('tags-count');
+  try {
+    const r = await fetch('/api/ollama/tags');
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    const models = data.models || [];
+    badge.textContent = models.length + ' Modelle';
+    if (!models.length) { el.innerHTML = '<div class="empty">Keine Modelle</div>'; return; }
+    el.innerHTML = `<table>
+      <thead><tr><th>Modell</th><th>Größe</th><th>Geändert</th></tr></thead>
+      <tbody>${models.map(m=>`<tr>
+        <td><div class="model-name">${m.name}</div><div class="model-detail">${m.details?.parameter_size||''} · ${m.details?.quantization_level||''}</div></td>
+        <td>${fmt(m.size)}</td><td>${timeAgo(m.modified_at)}</td>
+      </tr>`).join('')}</tbody></table>`;
+  } catch {
+    badge.textContent = 'Fehler';
+    el.innerHTML = `<div class="empty" style="color:var(--red)">Ollama nicht erreichbar</div>`;
+  }
+}
+
+// ── OpenClaw ───────────────────────────────────────────────────────────────────
+async function fetchOpenClaw() {
+  const el = document.getElementById('openclaw-status');
+  const badge = document.getElementById('oc-count');
+  try {
+    const r = await fetch('/api/openclaw/status');
+    const data = await r.json();
+    const raw = data.raw || '';
+    const gatewayOk   = raw.includes('Gateway reachable');
+    const gatewayFail = raw.includes('unreachable') || raw.includes('Error');
+    const channelLines = raw.split('\n').filter(l => l.trim().startsWith('-'));
+    badge.textContent = channelLines.length + ' Channels';
+
+    let html = `<div class="status-row">
+      <span class="status-label">Gateway</span>
+      <span class="status-value">
+        <span class="dot ${gatewayOk?'dot-green':gatewayFail?'dot-red':'dot-yellow'}"></span>
+        <span class="tag ${gatewayOk?'tag-green':gatewayFail?'tag-red':'tag-yellow'}">${gatewayOk?'Erreichbar':gatewayFail?'Nicht erreichbar':'Unbekannt'}</span>
+      </span></div>`;
+
+    if (channelLines.length) {
+      html += '<div style="margin-top:12px">';
+      channelLines.forEach(line => {
+        const clean = line.replace(/^-\s*/,'');
+        const [namePart,...rest] = clean.split(':');
+        const tags = rest.join(':').trim().split(',').map(s=>s.trim()).filter(Boolean);
+        const running = tags.some(t=>t.includes('running'));
+        html += `<div class="channel-row">
+          <div class="channel-name"><span class="dot ${running?'dot-green':'dot-yellow'}"></span>${namePart.trim()}</div>
+          <div class="channel-details">${tags.map(t=>{
+            const cls=t.includes('running')||t.includes('enabled')?'tag-green':t.includes('error')?'tag-red':'';
+            return `<span class="tag ${cls}">${t}</span>`;
+          }).join('')}</div></div>`;
+      });
+      html += '</div>';
+    }
+    el.innerHTML = html;
+  } catch {
+    badge.textContent = 'Fehler';
+    el.innerHTML = `<div class="empty" style="color:var(--red)">OpenClaw nicht erreichbar</div>`;
+  }
+}
+
+// ── Usage & Costs ─────────────────────────────────────────────────────────────
+function fmtTokens(n) {
+  if (!n) return '0';
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'k';
+  return n.toString();
+}
+
+async function fetchUsage() {
+  const el = document.getElementById('usage-panel');
+  const badge = document.getElementById('usage-total');
+  try {
+    const r = await fetch('/api/usage');
+    const d = await r.json();
+    const oc = d.openclaw;
+    const cc = d.claudecode;
+    const total = (oc.costUSD + cc.costUSD).toFixed(2);
+    badge.textContent = `Gesamt ~$${total}`;
+
+    const topModels = (models) => Object.entries(models)
+      .sort((a,b) => b[1]-a[1])
+      .slice(0,4)
+      .map(([m,c]) => `<span class="tag" style="font-size:10px" title="${c} Aufrufe">${m.replace('claude-','').replace('-20240307','').replace('-20251001','')}</span>`)
+      .join('');
+
+    el.innerHTML = `<div class="usage-grid">
+      <div class="usage-block">
+        <h3>🔌 OpenClaw <span style="font-size:10px;color:var(--muted);font-weight:400">(exakte Kosten)</span></h3>
+        <div class="usage-cost">$${oc.costUSD.toFixed(4)}</div>
+        <div class="usage-cost-label">USD — tatsächliche API-Kosten</div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Input Tokens</span><span class="usage-stat-val">${fmtTokens(oc.tokens.input)}</span></div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Output Tokens</span><span class="usage-stat-val">${fmtTokens(oc.tokens.output)}</span></div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Cache Read</span><span class="usage-stat-val">${fmtTokens(oc.tokens.cacheRead)}</span></div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Cache Write</span><span class="usage-stat-val">${fmtTokens(oc.tokens.cacheWrite)}</span></div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Total Tokens</span><span class="usage-stat-val">${fmtTokens(oc.tokens.totalTokens)}</span></div>
+        <div class="usage-models">${topModels(oc.models)}</div>
+      </div>
+      <div class="usage-block">
+        <h3>🤖 Claude Code <span style="font-size:10px;color:var(--muted);font-weight:400">(Schätzung)</span></h3>
+        <div class="usage-cost">~$${cc.costUSD.toFixed(2)}</div>
+        <div class="usage-cost-label">USD — geschätzt nach Anthropic Preisen</div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Input Tokens</span><span class="usage-stat-val">${fmtTokens(cc.tokens.input)}</span></div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Output Tokens</span><span class="usage-stat-val">${fmtTokens(cc.tokens.output)}</span></div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Cache Read</span><span class="usage-stat-val">${fmtTokens(cc.tokens.cacheRead)}</span></div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Cache Write</span><span class="usage-stat-val">${fmtTokens(cc.tokens.cacheWrite)}</span></div>
+        <div class="usage-stat-row"><span class="usage-stat-label">Gesamt (geschätzt)</span><span class="usage-stat-val" style="color:var(--accent)">~$${cc.costUSD.toFixed(2)}</span></div>
+        <div class="usage-models">${topModels(cc.models)}</div>
+      </div>
+    </div>`;
+  } catch(e) {
+    badge.textContent = 'Fehler';
+    el.innerHTML = `<div class="empty" style="color:var(--red)">Usage-Daten nicht verfügbar</div>`;
+  }
+}
+
+// ── Agents ────────────────────────────────────────────────────────────────────
+async function fetchAgents() {
+  const el = document.getElementById('agents-panel');
+  const badge = document.getElementById('agents-count');
+  try {
+    const r = await fetch('/api/agents');
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+
+    const agents = data.agents || [];
+    badge.textContent = `${agents.length} Agents · ${agents.filter(a=>a.isActive).length} aktiv`;
+
+    if (!agents.length) {
+      el.innerHTML = '<div class="empty">Keine Agents gefunden</div>';
+      return;
+    }
+
+    el.innerHTML = `<div class="agent-grid">${agents.map(a => {
+      const isActive = a.isActive;
+      const isDefault = a.isDefault;
+      const desc = a.config?.description?.de || a.config?.description?.en || a.description?.de || '–';
+      const tags = (a.config?.tags || []).slice(0, 3);
+      const version = a.config?.version || '–';
+
+      return `<div class="agent-card ${isActive ? 'active' : ''} ${isDefault && !isActive ? 'default-agent' : ''}">
+        <div class="agent-card-header">
+          <div>
+            <div class="agent-name">${a.name || a.id}</div>
+            <div class="agent-id">${a.id}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            ${isActive ? '<span class="tag tag-green">● Aktiv</span>' : '<span class="tag" style="background:rgba(100,116,139,0.15);color:var(--muted)">○ Inaktiv</span>'}
+            ${isDefault ? '<span class="tag">★ Default</span>' : ''}
+          </div>
+        </div>
+        <div class="agent-badges">
+          ${tags.map(t => `<span class="tag" style="font-size:10px">${t}</span>`).join('')}
+        </div>
+        <div class="agent-desc">${desc}</div>
+        <div class="agent-footer">
+          <span class="agent-division">📂 ${a.division || '–'}</span>
+          <span style="margin-left:auto">v${version}</span>
+        </div>
+      </div>`;
+    }).join('')}</div>
+    <div style="margin-top:12px;font-size:11px;color:var(--muted)">Repo: ${data.repoPath}</div>`;
+  } catch (e) {
+    badge.textContent = 'Fehler';
+    el.innerHTML = `<div class="empty" style="color:var(--red)">AI-Agents Repo nicht gefunden<br><code style="font-size:11px">~/Documents/AI-Agents</code></div>`;
+  }
+}
+
+// ── Calendar data ──────────────────────────────────────────────────────────────
+async function fetchCalendarData() {
+  const y = calYear, m = calMonth;
+  const from = isoDate(y, m, 1);
+  // last day of month
+  const lastDay = new Date(y, m+1, 0).getDate();
+  const to = isoDate(y, m, lastDay);
+
+  const [macRes, ghRes, tasksRes] = await Promise.allSettled([
+    fetch(`/api/calendar/mac?from=${from}&to=${to}`).then(r=>r.json()),
+    fetch('/api/github/issues').then(r=>r.json()),
+    fetch('/api/tasks').then(r=>r.json()),
+  ]);
+
+  allEvents = [];
+
+  if (macRes.status === 'fulfilled' && macRes.value.events) {
+    allEvents.push(...macRes.value.events);
+  }
+  if (ghRes.status === 'fulfilled') {
+    const gh = ghRes.value;
+    if (gh.authRequired) document.getElementById('gh-auth-notice').style.display = 'flex';
+    else document.getElementById('gh-auth-notice').style.display = 'none';
+    if (gh.issues) {
+      // Show issues created this month
+      allEvents.push(...gh.issues.filter(i => i.date && i.date >= from && i.date <= to));
+    }
+  }
+  if (tasksRes.status === 'fulfilled' && Array.isArray(tasksRes.value)) {
+    allEvents.push(...tasksRes.value);
+  }
+
+  const total = allEvents.length;
+  document.getElementById('cal-count').textContent = total + ' Events';
+  renderCalendar();
+  if (selectedDate) renderSidebar(selectedDate);
+}
+
+// ── Calendar render ────────────────────────────────────────────────────────────
+function renderCalendar() {
+  const y = calYear, m = calMonth;
+  document.getElementById('cal-title').textContent = `${MONTHS_DE[m]} ${y}`;
+
+  const grid = document.getElementById('cal-grid');
+  const today = new Date();
+  const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // First day of month (0=Sun..6=Sat), convert to Mon-based
+  let startDow = new Date(y, m, 1).getDay(); // 0=Sun
+  startDow = (startDow + 6) % 7; // Mon=0
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const daysInPrev  = new Date(y, m, 0).getDate();
+
+  // Group events by date
+  const byDate = {};
+  allEvents.forEach(e => {
+    if (!e.date) return;
+    if (!byDate[e.date]) byDate[e.date] = [];
+    byDate[e.date].push(e);
+  });
+
+  let html = DAYS_DE.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  // Prev month padding
+  for (let i = startDow - 1; i >= 0; i--) {
+    const d = daysInPrev - i;
+    const ds = isoDate(y, m-1, d);
+    html += `<div class="cal-day other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+
+  // Current month
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = isoDate(y, m, d);
+    const isToday = ds === todayStr;
+    const isSelected = ds === selectedDate;
+    const events = byDate[ds] || [];
+    const pills = events.slice(0,3).map(e =>
+      `<div class="cal-event-pill pill-${e.source}" title="${e.title}">${e.title}</div>`
+    ).join('');
+    const more = events.length > 3 ? `<div style="font-size:10px;color:var(--muted)">+${events.length-3}</div>` : '';
+    html += `<div class="cal-day${isToday?' today':''}${isSelected?' selected':''}" onclick="selectDay('${ds}')">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-events">${pills}${more}</div>
+    </div>`;
+  }
+
+  // Next month padding
+  const total = startDow + daysInMonth;
+  const remaining = (7 - (total % 7)) % 7;
+  for (let d = 1; d <= remaining; d++) {
+    html += `<div class="cal-day other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function selectDay(dateStr) {
+  selectedDate = dateStr;
+  document.getElementById('task-date').value = dateStr;
+  renderCalendar();
+  renderSidebar(dateStr);
+}
+
+function renderSidebar(dateStr) {
+  const [y,m,d] = dateStr.split('-').map(Number);
+  document.getElementById('sidebar-date').textContent =
+    `${d}. ${MONTHS_DE[m-1]} ${y}`;
+
+  const events = allEvents.filter(e => e.date === dateStr);
+  const el = document.getElementById('sidebar-events');
+
+  if (!events.length) {
+    el.innerHTML = '<div class="sidebar-empty">Keine Events an diesem Tag</div>';
+    return;
+  }
+
+  el.innerHTML = events.map(e => {
+    const del = e.source === 'manual'
+      ? `<button class="sidebar-event-del" onclick="deleteTask('${e.id}')" title="Löschen">×</button>` : '';
+    const meta = e.source === 'github'
+      ? `<a href="${e.url}" target="_blank" style="color:var(--cal-gh);text-decoration:none">#${e.number}</a> · GitHub Issue`
+      : e.source === 'mac' ? 'macOS Kalender' : 'Manuell';
+    return `<div class="sidebar-event ${e.source}">
+      ${del}
+      <div class="sidebar-event-title">${e.title}</div>
+      <div class="sidebar-event-meta">${meta}${e.notes ? ' · ' + e.notes : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Task CRUD ──────────────────────────────────────────────────────────────────
+async function addTask() {
+  const title = document.getElementById('task-title').value.trim();
+  const date  = document.getElementById('task-date').value;
+  const notes = document.getElementById('task-notes').value.trim();
+  if (!title || !date) { alert('Titel und Datum sind Pflichtfelder'); return; }
+
+  await fetch('/api/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, date, notes })
+  });
+
+  document.getElementById('task-title').value = '';
+  document.getElementById('task-notes').value = '';
+  await fetchCalendarData();
+}
+
+async function deleteTask(id) {
+  await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+  await fetchCalendarData();
+}
+
+// ── Nav ────────────────────────────────────────────────────────────────────────
+function changeMonth(delta) {
+  calMonth += delta;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  fetchCalendarData();
+}
+function goToday() {
+  const now = new Date();
+  calYear = now.getFullYear(); calMonth = now.getMonth();
+  fetchCalendarData();
+}
+
+// ── Main fetch ─────────────────────────────────────────────────────────────────
+async function fetchAll() {
+  document.getElementById('last-updated').textContent = new Date().toLocaleTimeString('de-DE');
+  await Promise.all([fetchOllamaPs(), fetchOllamaTags(), fetchOpenClaw(), fetchUsage(), fetchAgents(), fetchCalendarData()]);
+}
+
+// ── Auto-refresh (30s) ─────────────────────────────────────────────────────────
+let countdown = 30;
+setInterval(() => {
+  countdown--;
+  document.getElementById('countdown').textContent = countdown;
+  if (countdown <= 0) { countdown = 30; fetchAll(); }
+}, 1000);
+
+// Init
+const today = new Date();
+document.getElementById('task-date').value = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
+selectDay(isoDate(today.getFullYear(), today.getMonth(), today.getDate()));
+fetchAll();
+</script>
+</body>
+</html>
