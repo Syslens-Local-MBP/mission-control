@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  staging-app:
+    build:
+      context: ../../dashboard
+      dockerfile: Dockerfile
+    container_name: staging-dashboard
+    restart: always
+    environment:
+      NODE_ENV: staging
+      DATABASE_URL: postgresql://openclaw:${DB_PASSWORD}@postgres:5432/openclaw_staging
+      API_PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 3G
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: staging-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: openclaw_staging
+      POSTGRES_USER: openclaw
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 1.5G
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: always
+    volumes:
+      - uptime-kuma-data:/app/data
+    ports:
+      - "3001:3001"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle-logs
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "9999:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+volumes:
+  postgres-data:
+  uptime-kuma-data:
+
+networks:
+  default:
+    name: staging-network

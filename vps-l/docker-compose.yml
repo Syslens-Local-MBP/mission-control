@@ -1,0 +1,109 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: openclaw-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: openclaw
+      POSTGRES_USER: openclaw
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  web-app:
+    build:
+      context: ../../dashboard
+      dockerfile: Dockerfile
+    container_name: openclaw-dashboard
+    restart: always
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://openclaw:${DB_PASSWORD}@postgres:5432/openclaw
+      API_PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+  openclaw-agent:
+    image: node:22-alpine
+    container_name: openclaw-agent
+    restart: always
+    working_dir: /app
+    environment:
+      NODE_ENV: production
+      OPENCLAW_STATE_DIR: /openclaw-state
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ALLOWED_USER: ${TELEGRAM_ALLOWED_USER}
+    volumes:
+      - /opt/mission-control/agent-workspace:/app
+      - openclaw-state:/openclaw-state
+    ports:
+      - "18789:18789"
+    command: npm install -g openclaw && openclaw gateway run --bind 0.0.0.0 --port 18789
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 6G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+
+  nginx-proxy:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: openclaw-nginx
+    restart: always
+    environment:
+      DB_MYSQL_HOST: postgres
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: npm
+      DB_MYSQL_PASSWORD: ${NGINX_DB_PASSWORD}
+      DB_MYSQL_NAME: npm
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    volumes:
+      - nginx-data:/data
+      - nginx-ssl:/etc/letsencrypt
+    depends_on:
+      - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+volumes:
+  postgres-data:
+  openclaw-state:
+  nginx-data:
+  nginx-ssl:
+
+networks:
+  default:
+    name: openclaw-network

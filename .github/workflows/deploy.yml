@@ -1,0 +1,95 @@
+name: Deploy to Infrastructure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Staging (VPS-M)
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS1_DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H vps1 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/deploy_key openc@vps1 << 'EOF'
+            cd /opt/mission-control
+            git pull origin main
+            docker compose -f vps-m/docker-compose.yml pull
+            docker compose -f vps-m/docker-compose.yml up -d
+          EOF
+        continue-on-error: false
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://openclaw.syslens.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Production (VPS-L)
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS2_DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H vps2 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/deploy_key agent-claw@vps2 << 'EOF'
+            cd /opt/mission-control
+            git pull origin main
+            docker compose -f vps-l/docker-compose.yml pull
+            docker compose -f vps-l/docker-compose.yml up -d
+          EOF
+        continue-on-error: false
+
+      - name: Verify Production Deployment
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS2_DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H vps2 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/deploy_key agent-claw@vps2 "docker ps && echo '✅ Deployment erfolgreich'"
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    steps:
+      - name: Notify on Slack
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "Deployment Status",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Mission Control Deployment*\nStaging: ${{ job.status }}\nProduction: ${{ job.status }}"
+                  }
+                }
+              ]
+            }
+        if: ${{ secrets.SLACK_WEBHOOK != '' }}
